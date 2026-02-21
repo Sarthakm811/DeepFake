@@ -1,0 +1,14 @@
+.venv/
+
+# Large datasets and artifacts
+data/
+models/
+text_results/
+outputs/
+logs/
+temp_downloads/
+anaconda_projects/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
