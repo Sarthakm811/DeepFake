@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deepfake Model Metrics Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        :root {
+            --bg: #060b1a;
+            --bg-2: #0a1330;
+            --panel: rgba(17, 24, 39, 0.7);
+            --panel-2: rgba(31, 41, 55, 0.75);
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --accent: #22c55e;
+            --border: rgba(148, 163, 184, 0.22);
+            --glow: rgba(59, 130, 246, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Segoe UI, Roboto, Arial, sans-serif;
+            background:
+                radial-gradient(circle at 15% 10%, rgba(59, 130, 246, 0.22), transparent 35%),
+                radial-gradient(circle at 90% 0%, rgba(16, 185, 129, 0.18), transparent 32%),
+                linear-gradient(160deg, var(--bg) 0%, var(--bg-2) 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            margin-bottom: 18px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.72));
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+        }
+
+        .title {
+            margin: 0;
+            font-size: 1.9rem;
+            font-weight: 800;
+            line-height: 1.2;
+            background: linear-gradient(90deg, #e2e8f0, #93c5fd 48%, #6ee7b7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.45;
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            border: 1px solid var(--border);
+            background: rgba(15, 23, 42, 0.65);
+            color: #cbd5e1;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            letter-spacing: 0.2px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 18px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+        }
+
+        .controls h3,
+        .notes h3 {
+            margin: 0 0 10px;
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .section {
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 7px 0;
+            color: var(--text);
+            font-size: 0.95rem;
+            padding: 6px 8px;
+            border-radius: 9px;
+            transition: background 0.2s ease;
+        }
+
+        .option:hover {
+            background: rgba(30, 41, 59, 0.48);
+        }
+
+        .option input {
+            accent-color: #22c55e;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: var(--text);
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+        }
+
+        .charts {
+            display: grid;
+            grid-template-rows: auto auto;
+            gap: 18px;
+        }
+
+        #barChart,
+        #radarChart {
+            width: 100%;
+            min-height: 380px;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .kpi {
+            background: linear-gradient(160deg, rgba(31, 41, 55, 0.7), rgba(30, 41, 59, 0.95));
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 11px;
+        }
+
+        .kpi .label {
+            color: var(--muted);
+            font-size: 0.78rem;
+            margin-bottom: 4px;
+        }
+
+        .kpi .value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #d1fae5;
+            text-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .notes ul {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .chart-title {
+            margin: 0 0 6px;
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            letter-spacing: 0.2px;
+        }
+
+        @media (max-width: 980px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Deepfake Model Real/Fake Metrics</h1>
+            <p class="subtitle">Source summaries: image_dataset_eval_summary_20260304_105947.json,
+                video_dataset_eval_summary_20260304_110210.json, text_dataset_eval_summary_20260304_122315.json</p>
+            <div class="pill-row">
+                <span class="pill">Interactive Comparison</span>
+                <span class="pill">Precision + Recall</span>
+                <span class="pill">Latest Evaluation Snapshot</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card controls">
+                <div class="section">
+                    <h3>Models</h3>
+                    <label class="option"><input type="checkbox" class="model-filter" value="Image" checked>
+                        Image</label>
+                    <label class="option"><input type="checkbox" class="model-filter" value="Video" checked>
+                        Video</label>
+                    <label class="option"><input type="checkbox" class="model-filter" value="Text" checked> Text</label>
+                    <div class="btn-row">
+                        <button id="allModelsBtn" type="button">Select All</button>
+                        <button id="noneModelsBtn" type="button">Clear</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Metrics</h3>
+                    <label class="option"><input type="checkbox" class="metric-filter" value="fake_precision" checked>
+                        Fake Precision</label>
+                    <label class="option"><input type="checkbox" class="metric-filter" value="fake_recall" checked> Fake
+                        Recall</label>
+                    <label class="option"><input type="checkbox" class="metric-filter" value="real_precision" checked>
+                        Real Precision</label>
+                    <label class="option"><input type="checkbox" class="metric-filter" value="real_recall" checked> Real
+                        Recall</label>
+                    <div class="btn-row">
+                        <button id="allMetricsBtn" type="button">Select All</button>
+                        <button id="noneMetricsBtn" type="button">Clear</button>
+                    </div>
+                </div>
+
+                <div class="section notes">
+                    <h3>Notes</h3>
+                    <ul>
+                        <li>Values are percentages from the latest eval summaries.</li>
+                        <li>Text metrics are from the clear-labeled set.</li>
+                        <li>Hover any point/bar to inspect exact values.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="charts">
+                <div class="card">
+                    <div class="kpi-row" id="kpis"></div>
+                    <p class="chart-title">Model-wise metric comparison</p>
+                    <div id="barChart"></div>
+                </div>
+                <div class="card">
+                    <p class="chart-title">Shape of performance across selected metrics</p>
+                    <div id="radarChart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DATA = {
+            Image: {
+                fake_precision: 80.83,
+                fake_recall: 80.61,
+                real_precision: 80.38,
+                real_recall: 80.60
+            },
+            Video: {
+                fake_precision: 100.00,
+                fake_recall: 100.00,
+                real_precision: 100.00,
+                real_recall: 100.00
+            },
+            Text: {
+                fake_precision: 100.00,
+                fake_recall: 100.00,
+                real_precision: 100.00,
+                real_recall: 100.00
+            }
+        };
+
+        const METRIC_LABELS = {
+            fake_precision: 'Fake Precision',
+            fake_recall: 'Fake Recall',
+            real_precision: 'Real Precision',
+            real_recall: 'Real Recall'
+        };
+
+        const METRIC_COLORS = {
+            fake_precision: '#f59e0b',
+            fake_recall: '#ef4444',
+            real_precision: '#3b82f6',
+            real_recall: '#10b981'
+        };
+
+        const MODEL_COLORS = {
+            Image: '#93c5fd',
+            Video: '#34d399',
+            Text: '#fda4af'
+        };
+
+        function hexToRgba(hex, alpha) {
+            const normalized = hex.replace('#', '');
+            const bigint = parseInt(normalized, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        const modelChecks = [ ...document.querySelectorAll('.model-filter') ];
+        const metricChecks = [ ...document.querySelectorAll('.metric-filter') ];
+        const kpiContainer = document.getElementById('kpis');
+
+        function selectedModels() {
+            return modelChecks.filter(i => i.checked).map(i => i.value);
+        }
+
+        function selectedMetrics() {
+            return metricChecks.filter(i => i.checked).map(i => i.value);
+        }
+
+        function updateKpis(models, metrics) {
+            const rows = [];
+            for (const m of models) {
+                for (const metric of metrics) {
+                    rows.push({ model: m, metric, value: DATA[ m ][ metric ] });
+                }
+            }
+
+            if (!rows.length) {
+                kpiContainer.innerHTML = '<div class="kpi"><div class="label">No Selection</div><div class="value">0.00%</div></div>';
+                return;
+            }
+
+            const mean = rows.reduce((a, b) => a + b.value, 0) / rows.length;
+            const min = rows.reduce((a, b) => Math.min(a, b.value), rows[ 0 ].value);
+            const max = rows.reduce((a, b) => Math.max(a, b.value), rows[ 0 ].value);
+            const spread = max - min;
+
+            kpiContainer.innerHTML = `
+        <div class="kpi"><div class="label">Selected Mean</div><div class="value">${mean.toFixed(2)}%</div></div>
+        <div class="kpi"><div class="label">Selected Min</div><div class="value">${min.toFixed(2)}%</div></div>
+        <div class="kpi"><div class="label">Selected Max</div><div class="value">${max.toFixed(2)}%</div></div>
+        <div class="kpi"><div class="label">Spread</div><div class="value">${spread.toFixed(2)}%</div></div>
+      `;
+        }
+
+        function renderBarChart(models, metrics) {
+            const traces = metrics.map(metric => ({
+                type: 'bar',
+                name: METRIC_LABELS[ metric ],
+                x: models,
+                y: models.map(model => DATA[ model ][ metric ]),
+                marker: {
+                    color: METRIC_COLORS[ metric ],
+                    line: { color: '#e2e8f0', width: 0.4 },
+                    opacity: 0.92
+                },
+                hovertemplate: '<b>%{x}</b><br>' + METRIC_LABELS[ metric ] + ': %{y:.2f}%<extra></extra>'
+            }));
+
+            const layout = {
+                title: 'Grouped Comparison by Model',
+                barmode: 'group',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#e5e7eb' },
+                xaxis: {
+                    gridcolor: 'rgba(148,163,184,0.16)',
+                    tickfont: { size: 13 }
+                },
+                yaxis: {
+                    title: 'Percentage',
+                    range: [ 0, 105 ],
+                    gridcolor: 'rgba(148,163,184,0.16)',
+                    zerolinecolor: 'rgba(148,163,184,0.2)'
+                },
+                margin: { l: 55, r: 20, t: 50, b: 40 },
+                legend: {
+                    orientation: 'h',
+                    y: 1.14,
+                    bgcolor: 'rgba(15,23,42,0.45)'
+                },
+                hoverlabel: {
+                    bgcolor: '#0f172a',
+                    bordercolor: '#1e293b',
+                    font: { color: '#e2e8f0' }
+                }
+            };
+
+            Plotly.react('barChart', traces, layout, { responsive: true, displaylogo: false });
+        }
+
+        function renderRadarChart(models, metrics) {
+            const traces = models.map(model => {
+                const color = MODEL_COLORS[ model ] || '#93c5fd';
+                return {
+                    type: 'scatterpolar',
+                    r: metrics.map(metric => DATA[ model ][ metric ]),
+                    theta: metrics.map(metric => METRIC_LABELS[ metric ]),
+                    fill: 'toself',
+                    fillcolor: hexToRgba(color, 0.17),
+                    line: { color, width: 2.6 },
+                    marker: { color, size: 7 },
+                    name: model,
+                    hovertemplate: '<b>' + model + '</b><br>%{theta}: %{r:.2f}%<extra></extra>'
+                };
+            });
+
+            const layout = {
+                title: 'Radar View by Model',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#e5e7eb' },
+                polar: {
+                    radialaxis: {
+                        visible: true,
+                        range: [ 0, 100 ],
+                        gridcolor: 'rgba(148,163,184,0.2)',
+                        tickfont: { color: '#cbd5e1' }
+                    },
+                    angularaxis: {
+                        gridcolor: 'rgba(148,163,184,0.2)',
+                        tickfont: { color: '#e2e8f0', size: 12 }
+                    },
+                    bgcolor: 'rgba(0,0,0,0)'
+                },
+                margin: { l: 40, r: 40, t: 50, b: 25 },
+                legend: {
+                    orientation: 'h',
+                    y: 1.1,
+                    bgcolor: 'rgba(15,23,42,0.45)'
+                },
+                hoverlabel: {
+                    bgcolor: '#0f172a',
+                    bordercolor: '#1e293b',
+                    font: { color: '#e2e8f0' }
+                }
+            };
+
+            Plotly.react('radarChart', traces, layout, { responsive: true, displaylogo: false });
+        }
+
+        function render() {
+            const models = selectedModels();
+            const metrics = selectedMetrics();
+
+            if (!models.length || !metrics.length) {
+                updateKpis([], []);
+                Plotly.react('barChart', [], {
+                    title: 'Grouped Comparison by Model',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#e5e7eb' },
+                    xaxis: { visible: false },
+                    yaxis: { visible: false },
+                    annotations: [ { text: 'Select at least one model and one metric', showarrow: false } ]
+                }, { responsive: true, displaylogo: false });
+
+                Plotly.react('radarChart', [], {
+                    title: 'Radar View by Model',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#e5e7eb' },
+                    xaxis: { visible: false },
+                    yaxis: { visible: false },
+                    annotations: [ { text: 'Select at least one model and one metric', showarrow: false } ]
+                }, { responsive: true, displaylogo: false });
+                return;
+            }
+
+            updateKpis(models, metrics);
+            renderBarChart(models, metrics);
+            renderRadarChart(models, metrics);
+        }
+
+        modelChecks.forEach(cb => cb.addEventListener('change', render));
+        metricChecks.forEach(cb => cb.addEventListener('change', render));
+
+        document.getElementById('allModelsBtn').addEventListener('click', () => {
+            modelChecks.forEach(i => i.checked = true);
+            render();
+        });
+        document.getElementById('noneModelsBtn').addEventListener('click', () => {
+            modelChecks.forEach(i => i.checked = false);
+            render();
+        });
+        document.getElementById('allMetricsBtn').addEventListener('click', () => {
+            metricChecks.forEach(i => i.checked = true);
+            render();
+        });
+        document.getElementById('noneMetricsBtn').addEventListener('click', () => {
+            metricChecks.forEach(i => i.checked = false);
+            render();
+        });
+
+        render();
+    </script>
+</body>
+
+</html>
