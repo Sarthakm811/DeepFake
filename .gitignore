@@ -12,3 +12,10 @@ anaconda_projects/
 # OS and editor files
 .DS_Store
 Thumbs.db
+Test_Image/
+Test_Image_Synth/
+Test_Video_Synth/
+.venv-1/
+tests/
+
+
